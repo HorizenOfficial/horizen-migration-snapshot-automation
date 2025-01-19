@@ -1,0 +1,172 @@
+#!/bin/bash
+set -eEuo pipefail
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &>/dev/null && pwd)"
+source "${ROOT_DIR}"/scripts/utils.sh
+
+echo -e "\n\033[1m=== Checking all the requirements ===\033[0m"
+
+verify_required_commands
+
+# Making sure the script is not being run as root
+LOCAL_USER_ID="$(id -u)"
+LOCAL_GROUP_ID="$(id -g)"
+if [ "${LOCAL_USER_ID}" == 0 ] || [ "${LOCAL_GROUP_ID}" == 0 ]; then
+  fn_die "Error: This script should not be run as root. Exiting..."
+fi
+
+echo -e "\n\033[1mWhat network would you like to setup 'eon' (mainnet) or 'gobi' (testnet): \033[0m"
+select network_value in eon gobi; do
+  if [ -n "${network_value}" ]; then
+    echo -e "\nYou have selected: \033[1m${network_value}\033[0m"
+    break
+  else
+    echo -e "\n\033[1mInvalid selection. Please type 1, or 2.\033[0m\n"
+  fi
+done
+
+echo -e "\n\033[1m=== Preparing deployment directory ./${network_value} ===\033[0m"
+DEPLOYMENT_DIR="${ROOT_DIR}/deployments/${network_value}"
+mkdir -p "${DEPLOYMENT_DIR}" || fn_die "Error: could not create deployment directory. Fix it before proceeding any further.  Exiting..."
+
+echo -e "\n\033[1m=== Creating .env file ===\033[0m"
+ENV_FILE_TEMPLATE="${ROOT_DIR}/env/.env.${network_value}.template"
+ENV_FILE="${DEPLOYMENT_DIR}/.env"
+
+if ! [ -f "${ENV_FILE}" ]; then
+  cp "${ENV_FILE_TEMPLATE}" "${ENV_FILE}"
+  # shellcheck source=../.env.eon
+  source "${ENV_FILE}" || fn_die "Error: could not source ${ENV_FILE} file. Fix it before proceeding any further.  Exiting..."
+
+  # Setting SCNODE_NET_NODENAME and SCNODE_WALLET_SEED dynamically
+  if [ -z "${SCNODE_WALLET_SEED}" ]; then
+    echo -e "\n\033[1m=== Setting up the wallet seed phrase ===\033[0m\n"
+    read -rp "Do you want to import an already existing seed phrase for your wallet ? ('yes' or 'no') " wallet_seed_answer
+    while [[ ! "${wallet_seed_answer}" =~ ^(yes|no)$ ]]; do
+      echo -e "\nError: The only allowed answers are 'yes' or 'no'. Try again...\n"
+      read -rp "Do you want to import an already existing seed phrase for your wallet ? ('yes' or 'no') " wallet_seed_answer
+    done
+    if [ "${wallet_seed_answer}" = "yes" ]; then
+      read -rp "Please type or paste now the seed phrase you want to import: " imported_wallet_seed
+      read -rp "Do you confirm this is the seed phrase you want to import : ${imported_wallet_seed} ? ('yes' or 'no') " wallet_seed_answer_2
+      while [[ ! "${wallet_seed_answer_2}" =~ ^(yes|no)$ ]]; do
+        echo -e "\nError: The only allowed answers are 'yes' or 'no'. Try again...\n"
+        read -rp "Do you confirm this is the seed phrase you want to import : ${imported_wallet_seed} ? ('yes' or 'no') " wallet_seed_answer_2
+      done
+      if [ "${wallet_seed_answer_2}" = "yes" ]; then
+        SCNODE_WALLET_SEED="${imported_wallet_seed}"
+        sed -i "s/SCNODE_WALLET_SEED=.*/SCNODE_WALLET_SEED=${imported_wallet_seed}/g" "${ENV_FILE}"
+      else
+        # Removing env_file since exit script will leave it in incomplete state
+        rm -f "${ENV_FILE}"
+        fn_die "Wallet seed phrase import aborted; please run again the init.sh script. Exiting ..."
+      fi
+    else
+      SCNODE_WALLET_SEED="$(pwgen 64 1)" || fn_die "Error: could not set SCNODE_WALLET_SEED variable for some reason. Fix it before proceeding any further.  Exiting..."
+      echo -e "\n\033[1m=== PLEASE SAVE YOUR WALLET SEED PHRASE AND KEEP IT SAFE ===\033[0m"
+      echo -e "\nYour Seed phrase is : \033[1m${SCNODE_WALLET_SEED}\033[0m\n"
+      read -rp "Do you confirm you safely stored your Wallet Seed Phrase ? ('yes') " wallet_seed_answer_3
+      while [[ ! "${wallet_seed_answer_3}" =~ ^(yes)$ ]]; do
+        echo -e "\nYou should safely store your seed phrase. Please try again...\n"
+        read -rp "Do you confirm you safely stored your Wallet Seed Phrase ? ('yes') " wallet_seed_answer_3
+      done
+      if [ "${wallet_seed_answer_3}" = "yes" ]; then
+        sed -i "s/SCNODE_WALLET_SEED=.*/SCNODE_WALLET_SEED=${SCNODE_WALLET_SEED}/g" "${ENV_FILE}"
+      fi
+    fi
+  fi
+  SCNODE_NET_NODENAME="ext-dump-$((RANDOM % 100000 + 1))" || fn_die "Error: could not set NODE_NAME variable for some reason. Fix it before proceeding any further.  Exiting..."
+  sed -i "s/SCNODE_NET_NODENAME=.*/SCNODE_NET_NODENAME=${SCNODE_NET_NODENAME}/g" "${ENV_FILE}"
+
+  # Setting local user and group in docker containers
+  echo -e "\n\033[1m=== Setting up the docker containers local user and group ids ===\033[0m\n"
+  echo -e "The uid:gid with which to run the processes inside of the container will default to ${LOCAL_USER_ID}:${LOCAL_GROUP_ID}"
+  read -rp "Do you want to change the user (please answer 'no' if you don't know what you are doing) ? ('yes' or 'no') " user_group_answer
+  while [[ ! "${user_group_answer}" =~ ^(yes|no)$ ]]; do
+    echo -e "\nError: The only allowed answers are 'yes' or 'no'. Try again...\n"
+    read -rp "Do you want to change the user (please answer 'no' if you don't know what you are doing) ? ('yes' or 'no') " user_group_answer
+  done
+  if [ "${user_group_answer}" = "yes" ]; then
+    read -rp "Please type the user id you want to use in your docker containers (0 is an invalid value): " user_id
+    while [[ ! "${user_id}" =~ ^[1-9][0-9]*$ ]]; do
+      echo -e "\nError: The user id must be a positive integer and not 0. Try again...\n"
+      read -rp "Please type the user id you want to use in your docker containers (0 is an invalid value): " user_id
+    done
+    read -rp "Please type the group id you want to use in your docker containers: " group_id
+    while [[ ! "${group_id}" =~ ^[1-9][0-9]*$ ]]; do
+      echo -e "\nError: The user id must be a positive integer and not 0. Try again...\n"
+      read -rp "Please type the group id you want to use in your docker containers (0 is an invalid value): " group_id
+    done
+    LOCAL_USER_ID="${user_id}"
+    LOCAL_GROUP_ID="${group_id}"
+  fi
+  sed -i "s/SCNODE_USER_ID=.*/SCNODE_USER_ID=${LOCAL_USER_ID}/g" "${ENV_FILE}"
+  sed -i "s/SCNODE_GRP_ID=.*/SCNODE_GRP_ID=${LOCAL_GROUP_ID}/g" "${ENV_FILE}"
+  sed -i "s/ZEN_LOCAL_USER_ID=.*/ZEN_LOCAL_USER_ID=${LOCAL_USER_ID}/g" "${ENV_FILE}"
+  sed -i "s/ZEN_LOCAL_GRP_ID=.*/ZEN_LOCAL_GRP_ID=${LOCAL_GROUP_ID}/g" "${ENV_FILE}"
+
+  # Setting volumes datadir
+  echo -e "\n\033[1m=== Setting up the docker volumes datadir ===\033[0m\n"
+  echo -e "By default internal docker volumes will be used."
+  read -rp "Do you want to change the datadir (please answer 'no' if you don't know what you are doing) ? ('yes' or 'no') " datadir_answer
+  while [[ ! "${datadir_answer}" =~ ^(yes|no)$ ]]; do
+    echo -e "\nError: The only allowed answers are 'yes' or 'no'. Try again...\n"
+    read -rp "Do you want to change the datadir (please answer 'no' if you don't know what you are doing) ? ('yes' or 'no') " datadir_answer
+  done
+  if [ "${datadir_answer}" = "yes" ]; then
+    default_datadir_path="./data/"
+    read -rp "Please type the path to the datadir you want to use in your docker containers or press enter to use default ('${default_datadir_path}'): " datadir_path
+    if [ -z "${datadir_path}" ]; then
+      datadir_path="${default_datadir_path}"
+    fi
+    sed -i "s#COMPOSE_PROJECT_DATA_DIR=.*#COMPOSE_PROJECT_DATA_DIR=${datadir_path}#g" "${ENV_FILE}"
+  fi
+fi
+
+# shellcheck source=../deployments/eon/.env
+source "${ENV_FILE}" || fn_die "Error: could not source ${ENV_FILE} file. Fix it before proceeding any further.  Exiting..."
+
+check_required_variables
+
+echo -e "\n\033[1m=== Creating symlink to compose file ===\033[0m"
+COMPOSE_FILE="${ROOT_DIR}/compose_files/docker-compose.yml"
+SYMLINK_COMPOSE_FILE="${DEPLOYMENT_DIR}/docker-compose.yml"
+ln -sf "${COMPOSE_FILE}" "${SYMLINK_COMPOSE_FILE}"
+
+DOWNLOAD_SEED_FILE="${ROOT_DIR}/scripts/seed/download_seed.sh"
+SYMLINK_SEED_DOWNLOAD_FILE="${DEPLOYMENT_DIR}/scripts/download_seed.sh"
+SEED_FILE="${ROOT_DIR}/scripts/seed/seed.sh"
+SYMLINK_SEED_FILE="${DEPLOYMENT_DIR}/scripts/seed.sh"
+DUMPER_FILE="${ROOT_DIR}/scripts/dumper.sh"
+SYMLINK_DUMPER_FILE="${DEPLOYMENT_DIR}/scripts/dumper.sh"
+mkdir -p "${DEPLOYMENT_DIR}/scripts"
+ln -sf "${DOWNLOAD_SEED_FILE}" "${SYMLINK_SEED_DOWNLOAD_FILE}"
+ln -sf "${SEED_FILE}" "${SYMLINK_SEED_FILE}"
+ln -sf "${DUMPER_FILE}" "${SYMLINK_DUMPER_FILE}"
+
+mkdir -p "${DEPLOYMENT_DIR}/seed"
+
+MONITORING_DIR="${ROOT_DIR}/monitoring"
+DEPLOYMENT_MONITORING_DIR="${DEPLOYMENT_DIR}/monitoring"
+mkdir -p "${DEPLOYMENT_MONITORING_DIR}"
+cp -r "${MONITORING_DIR}"/* "${DEPLOYMENT_MONITORING_DIR}/"
+
+DUMP_FILES_DIR="${DEPLOYMENT_MONITORING_DIR}/files"
+mkdir -p "${DUMP_FILES_DIR}"
+mkdir -p "${DUMP_FILES_DIR}/zend"
+mkdir -p "${DUMP_FILES_DIR}/eon"
+
+EXPLORER_URL="https://explorer.horizen.io"
+EVMAPP_EXPLORER_URL="https://eon-explorer.horizenlabs.io"
+if [ "${network_value}" = "gobi" ]; then
+  EXPLORER_URL="https://explorer-testnet.horizen.io"
+  EVMAPP_EXPLORER_URL="https://gobi-explorer.horizenlabs.io"
+fi
+
+echo -e "\n\033[1m=== Project has been initialized correctly for ${network_value} network ===\033[0m"
+
+echo -e "\n\033[1m=== RUNNING HORIZEN SNAPSHOT CREATION PROJECT ===\033[0m\n"
+
+echo -e "\n\033[1m===========================\033[0m\n"
+
+exit 0
