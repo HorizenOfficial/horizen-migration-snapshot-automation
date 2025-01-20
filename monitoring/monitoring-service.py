@@ -6,9 +6,14 @@ import signal
 import docker
 import requests
 import json
+from enum import Enum
 
 # ------------------------------------------------------------------------------------------------
-# env variables
+# script variables
+COMPOSE_PROJECT_DIR = os.getenv("COMPOSE_PROJECT_DIR")
+PARACHAIN_SPEC_REL_PATH = "./files/parachain-spec"
+ZEND_DUMP_REL_PATH = "./files/dumps/zend"
+EON_DUMP_REL_PATH = "./files/dumps/eon"
 ZEND_CONTAINER_NAME = os.getenv("ZEND_CONTAINER_NAME", "zend")
 ZEND_IP_ADDRESS = os.getenv("ZEND_IP_ADDRESS")
 SCNODE_REST_PORT = os.getenv("SCNODE_REST_PORT")
@@ -17,6 +22,11 @@ EVMAPP_CONTAINER_NAME = os.getenv("EVMAPP_CONTAINER_NAME", "evmapp")
 INET_DOCKER_NETWORK = os.getenv("INET_DOCKER_NETWORK", "inet")
 ZEND_BLOCK_HEIGHT_TARGET = int(os.getenv("ZEND_BLOCK_HEIGHT_TARGET"))
 EVMAPP_BLOCK_HEIGHT_TARGET = int(os.getenv("EVMAPP_BLOCK_HEIGHT_TARGET"))
+
+class ServiceAction(Enum):
+    ZEND_DUMP = "zend-dump"
+    EON_DUMP = "eon-dump"
+    SNAPSHOT_CREATION = "snapshot-creation"
 
 # ------------------------------------------------------------------------------------------------
 # manage containers
@@ -133,11 +143,11 @@ def invalidate_block(block_hash):
     except Exception as e:
         print(f"Unexpected error while invalidating block {block_hash}: {str(e)}")
 
-def disconnect_zend_from_inet():
+def disconnect_zend_container():
     """Disconnect the zend container from the inet network."""
     try:
         subprocess.run(
-            ["docker", "network", "disconnect", "inet", ZEND_CONTAINER_NAME],
+            ["docker", "network", "disconnect", INET_DOCKER_NETWORK, ZEND_CONTAINER_NAME],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -171,7 +181,7 @@ def invalidate_blocks_to_threshold():
 
 def call_evmapp_ethv1(method, params=None):
     """Call the ethv1 method defined as input field, optional parameters"""
-    url = f'http://{ZEND_IP_ADDRESS}:{SCNODE_REST_PORT}/ethv1'
+    evmapp_url = f'http://{ZEND_IP_ADDRESS}:{SCNODE_REST_PORT}/ethv1'
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -187,7 +197,7 @@ def call_evmapp_ethv1(method, params=None):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(evmapp_url, headers=headers, json=payload)
         response.raise_for_status() 
         return response.json()
 
@@ -219,6 +229,12 @@ def call_zen_dump_etv1_method():
     else:
         print("Error: Zen dump request failed.")
 
+def execute_get_all_forger_stakes_script():
+    evmapp_url = f'http://{ZEND_IP_ADDRESS}:{SCNODE_REST_PORT}/ethv1'
+    get_all_forger_stakes_script_path = "./horizen-scripts/get_all_forger_stakes.py"
+    get_all_forger_stakes_script_parameters = [EVMAPP_BLOCK_HEIGHT_TARGET, evmapp_url, f"{EON_DUMP_REL_PATH}/eon_stakes.json"] 
+    execute_external_horizen_script(get_all_forger_stakes_script_path, *get_all_forger_stakes_script_parameters)
+
 # ------------------------------------------------------------------------------------------------
 # snapshot creation methods
 
@@ -246,13 +262,18 @@ def create_para_spec_json(output_file):
         print(f"Unexpected error: {e}")
         raise
 
+def execute_setup_eon2_genesis_script():
+    setup_eon2_genesis_json_script_path = "./horizen-scripts/setup_eon2_genesis_json.py"
+    setup_eon2_genesis_json_script_parameters = [f"{EON_DUMP_REL_PATH}/eon.dump", f"{EON_DUMP_REL_PATH}/eon_stakes.json", f"{ZEND_DUMP_REL_PATH}/utxos.csv", f"{PARACHAIN_SPEC_REL_PATH}/para-spec.json", f"{PARACHAIN_SPEC_REL_PATH}/para-spec-plain.json"] 
+    execute_external_horizen_script(setup_eon2_genesis_json_script_path, *setup_eon2_genesis_json_script_parameters)
+
 def create_para_spec_raw(output_file):
     try:
-        para_spec_path = get_para_spec_json_path_from_env()
+        para_spec_plain_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-plain.json"
 
         command = [
             "docker", "run", "--rm",
-            "-v", f"{para_spec_path}:/tmp/para-spec.json",
+            "-v", f"{para_spec_plain_absolute_path}:/tmp/para-spec.json",
             "--entrypoint", "horizen-spec-builder",
             "horizen/horizen-node:0.2.0-dev2-spec-builder",
             "build-spec",
@@ -275,11 +296,11 @@ def create_para_spec_raw(output_file):
 
 def create_para_genesis_wasm(output_file):
     try:
-        para_spec_raw_path = get_para_spec_raw_path_from_env()
+        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-raw.json"
 
         command = [
             "docker", "run", "--rm",
-            "-v", f"{para_spec_raw_path}:/tmp/para-spec-raw.json",
+            "-v", f"{para_spec_raw_absolute_path}:/tmp/para-spec-raw.json",
             "--entrypoint", "horizen-spec-builder",
             "horizen/horizen-node:0.2.0-dev2-spec-builder",
             "export-genesis-wasm",
@@ -301,11 +322,11 @@ def create_para_genesis_wasm(output_file):
 
 def create_para_genesis_state(output_file):
     try:
-        para_spec_raw_path = get_para_spec_raw_path_from_env()
+        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-raw.json"
 
         command = [
             "docker", "run", "--rm",
-            "-v", f"{para_spec_raw_path}:/tmp/para-spec-raw.json",
+            "-v", f"{para_spec_raw_absolute_path}:/tmp/para-spec-raw.json",
             "--entrypoint", "horizen-spec-builder",
             "horizen/horizen-node:0.2.0-dev2-spec-builder",
             "export-genesis-state",
@@ -325,7 +346,7 @@ def create_para_genesis_state(output_file):
         print(f"Unexpected error: {e}")
         raise
 
-def fill_para_spec_with_dumps_data(script_path, *args):
+def execute_external_horizen_script(script_path, *args):
     try:
         command = [sys.executable, script_path] + list(args)
         print(f"Running external script: {script_path} with arguments: {args}")
@@ -339,28 +360,12 @@ def fill_para_spec_with_dumps_data(script_path, *args):
         print(f"Unexpected error while calling external script: {e}")
         raise
 
-def get_para_spec_json_path_from_env():
-    para_spec_path = os.getenv("PARA_SPEC_JSON_PATH")
-    if para_spec_path:
-        print(f"The para-spec.json absolute path is: {para_spec_path}")
-    else:
-        print("PARA_SPEC_JSON_PATH environment variable is not set.")
-    return para_spec_path
-
-def get_para_spec_raw_path_from_env():
-    para_spec_raw_path = os.getenv("PARA_SPEC_RAW_PATH")
-    if para_spec_raw_path:
-        print(f"The para-spec.json absolute path is: {para_spec_raw_path}")
-    else:
-        print("PARA_SPEC_RAW_PATH environment variable is not set.")
-    return para_spec_raw_path
-
 # ------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     try:
         action = os.getenv("SERVICE_ACTION")
 
-        if action == "zend-dump":
+        if action == ServiceAction.ZEND_DUMP.value or not action:
             # manage running instance of zend-dumper, if there is a zend-dumper instance running kill it
             stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
 
@@ -375,7 +380,7 @@ if __name__ == "__main__":
                 # wait till it is synched
                 while True:
                     if zend_block_height >= ZEND_BLOCK_HEIGHT_TARGET:
-                        disconnect_zend_from_inet()
+                        disconnect_zend_container()
                         invalidate_blocks_to_threshold()
                         # stop the zend container 
                         stop_container_if_running(ZEND_CONTAINER_NAME)
@@ -386,8 +391,8 @@ if __name__ == "__main__":
                         zend_block_height = get_zend_block_height()
                         time.sleep(10)  # check zend block height every 10 seconds
 
-        if action == "eon-dump":
 
+        if action == ServiceAction.EON_DUMP.value or not action:
             # start evmapp instance
             ensure_container_running(EVMAPP_CONTAINER_NAME)
             time.sleep(60)
@@ -405,23 +410,29 @@ if __name__ == "__main__":
                         evmapp_block_height = get_evmapp_block_height()
                         time.sleep(10) # check evmapp block height every 10 seconds
 
-        if action == "snapshot-creation":
+            # create eon_stakes.json file with the eon stakes info
+            execute_get_all_forger_stakes_script()
+        
+
+        if action == ServiceAction.SNAPSHOT_CREATION.value or not action:
             # step 1: create para-spec.json file with build-spec command
-            create_para_spec_json("./files/parachain-spec/para-spec.json")
+            create_para_spec_json(f"{PARACHAIN_SPEC_REL_PATH}/para-spec.json")
             
             # step 2: fill the para-spec file with the addresses from zend and eon
-            setup_eon2_genesis_json_script_path = "./horizen-scripts/setup_eon2_genesis_json.py"
-            setup_eon2_genesis_json_script_parameters = ["./files/dumps/eon/eon.dump", "./files/dumps/eon/eon_stakes.json", "./files/dumps/zend/utxos.csv", "./files/parachain-spec/para-spec.json", "./files/parachain-spec/para-spec-plain.json"] 
-            fill_para_spec_with_dumps_data(setup_eon2_genesis_json_script_path, *setup_eon2_genesis_json_script_parameters)
+            execute_setup_eon2_genesis_script()
 
             # step 3: generate para-spec-raw.json file 
-            create_para_spec_raw("./files/parachain-spec/para-spec-raw.json")
+            create_para_spec_raw(f"{PARACHAIN_SPEC_REL_PATH}/para-spec-raw.json")
 
             # Step 4: generate para-genesis.wasm file with export-genesis-wasm command
-            create_para_genesis_wasm("./files/parachain-spec/para-genesis.wasm")
+            create_para_genesis_wasm(f"{PARACHAIN_SPEC_REL_PATH}/para-genesis.wasm")
 
             # Step 5: generate para-genesis-state export-genesis-state
-            create_para_genesis_state("./files/parachain-spec/para-genesis-state")
+            create_para_genesis_state(f"{PARACHAIN_SPEC_REL_PATH}/para-genesis-state")
+
+        # invalid action provided
+        if action and action not in {e.value for e in ServiceAction}:
+            print(f"Unknown service action: {action}")
 
     except Exception as e:
         print("Monitoring service execution failed.")

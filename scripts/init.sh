@@ -105,6 +105,8 @@ if ! [ -f "${ENV_FILE}" ]; then
   sed -i "s/ZEN_LOCAL_USER_ID=.*/ZEN_LOCAL_USER_ID=${LOCAL_USER_ID}/g" "${ENV_FILE}"
   sed -i "s/ZEN_LOCAL_GRP_ID=.*/ZEN_LOCAL_GRP_ID=${LOCAL_GROUP_ID}/g" "${ENV_FILE}"
 
+  sed -i "s#COMPOSE_PROJECT_DIR=.*#COMPOSE_PROJECT_DIR=${DEPLOYMENT_DIR}#g" "${ENV_FILE}"
+
   # Setting volumes datadir
   echo -e "\n\033[1m=== Setting up the docker volumes datadir ===\033[0m\n"
   echo -e "By default internal docker volumes will be used."
@@ -156,17 +158,8 @@ mkdir -p "${DUMP_FILES_DIR}"
 mkdir -p "${DUMP_FILES_DIR}/zend"
 mkdir -p "${DUMP_FILES_DIR}/eon"
 
-EXPLORER_URL="https://explorer.horizen.io"
-EVMAPP_EXPLORER_URL="https://eon-explorer.horizenlabs.io"
-if [ "${network_value}" = "gobi" ]; then
-  EXPLORER_URL="https://explorer-testnet.horizen.io"
-  EVMAPP_EXPLORER_URL="https://gobi-explorer.horizenlabs.io"
-fi
-
 echo -e "\n\033[1m=== Project has been initialized correctly for ${network_value} network ===\033[0m"
 
 echo -e "\n\033[1m=== RUNNING HORIZEN SNAPSHOT CREATION PROJECT ===\033[0m\n"
-
-echo -e "\n\033[1m===========================\033[0m\n"
 
 exit 0

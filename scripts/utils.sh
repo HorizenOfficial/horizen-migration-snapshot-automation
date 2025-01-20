@@ -54,7 +54,7 @@ check_required_variables() {
     "ZEN_LOCAL_USER_ID"
     "ZEN_LOCAL_GRP_ID"
     "ZEND_DUMPER_CONTAINER_NAME"
-    "ZEND_DUMPER_IP"
+    "ZEND_DUMPER_IP_ADDRESS"
     "EVMAPP_TAG"
     "EVMAPP_CONTAINER_NAME"
     "EVMAPP_IP_ADDRESS"
@@ -98,8 +98,6 @@ check_required_variables() {
     "SCNODE_WALLET_MAXTX_FEE"
     "SCNODE_LOG_FILE_LEVEL"
     "SCNODE_LOG_CONSOLE_LEVEL"
-    "ZEND_BLOCK_HEIGHT_TARGET"
-    "EVMAPP_BLOCK_HEIGHT_TARGET"
   )
 
   for var in "${TO_CHECK[@]}"; do

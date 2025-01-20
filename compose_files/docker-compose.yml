@@ -167,8 +167,7 @@ services:
       - ./monitoring:/app:rw
     working_dir: /app
     environment:
-      - PARA_SPEC_JSON_PATH="${PWD}/monitoring/files/parachain-spec/para-spec.json"
-      - PARA_SPEC_RAW_PATH="${PWD}/monitoring/files/parachain-spec/para-spec-raw.json"
+      - COMPOSE_PROJECT_DIR
       - SERVICE_ACTION
       - ZEND_CONTAINER_NAME
       - ZEND_IP_ADDRESS
