@@ -125,6 +125,22 @@ if ! [ -f "${ENV_FILE}" ]; then
   fi
 fi
 
+# Setting height targets for mainchain and sidechain
+echo -e "\n\033[1m=== Setting up the height targets ===\033[0m\n"
+read -rp "Insert dump target height for mainchain: " mainchain_height_target
+while ! [[ "$mainchain_height_target" =~ ^[0-9]+$ ]]; do
+  echo -e "\nError: Numeric value only. Try again...\n"
+  read -rp "Insert dump target height for mainchain: " mainchain_height_target
+done
+sed -i "s/ZEND_BLOCK_HEIGHT_TARGET=.*/ZEND_BLOCK_HEIGHT_TARGET=${mainchain_height_target}/g" "${ENV_FILE}"
+
+read -rp "Insert dump target height for sidechain: " sidechain_height_target
+while ! [[ "$sidechain_height_target" =~ ^[0-9]+$ ]]; do
+  echo -e "\nError: Numeric value only. Try again...\n"
+  read -rp "Insert dump target height for sidechain: " sidechain_height_target
+done
+sed -i "s/EVMAPP_BLOCK_HEIGHT_TARGET=.*/EVMAPP_BLOCK_HEIGHT_TARGET=${sidechain_height_target}/g" "${ENV_FILE}"
+
 # shellcheck source=../deployments/eon/.env
 source "${ENV_FILE}" || fn_die "Error: could not source ${ENV_FILE} file. Fix it before proceeding any further.  Exiting..."
 
