@@ -10,6 +10,7 @@ from enum import Enum
 
 # ------------------------------------------------------------------------------------------------
 # script variables
+COMPOSE_PROJECT_NAME = os.getenv("COMPOSE_PROJECT_NAME")
 COMPOSE_PROJECT_DIR = os.getenv("COMPOSE_PROJECT_DIR")
 PARACHAIN_SPEC_REL_PATH = "./files/parachain-spec"
 ZEND_DUMP_REL_PATH = "./files/dumps/zend"
@@ -19,7 +20,7 @@ ZEND_IP_ADDRESS = os.getenv("ZEND_IP_ADDRESS")
 SCNODE_REST_PORT = os.getenv("SCNODE_REST_PORT")
 ZEND_DUMPER_CONTAINER_NAME = os.getenv("ZEND_DUMPER_CONTAINER_NAME", "zend-dumper")
 EVMAPP_CONTAINER_NAME = os.getenv("EVMAPP_CONTAINER_NAME", "evmapp")
-INET_DOCKER_NETWORK = os.getenv("INET_DOCKER_NETWORK", "inet")
+INET_DOCKER_NETWORK = COMPOSE_PROJECT_NAME + "_inet"
 ZEND_BLOCK_HEIGHT_TARGET = int(os.getenv("ZEND_BLOCK_HEIGHT_TARGET"))
 EVMAPP_BLOCK_HEIGHT_TARGET = int(os.getenv("EVMAPP_BLOCK_HEIGHT_TARGET"))
 
@@ -143,9 +144,61 @@ def invalidate_block(block_hash):
     except Exception as e:
         print(f"Unexpected error while invalidating block {block_hash}: {str(e)}")
 
-def disconnect_zend_container():
-    """Disconnect the zend container from the inet network."""
+def connect_zend_container():
+    """Connect the zend container to the inet network if not already connected."""
     try:
+        # Inspect the container to get its current networks
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", ZEND_CONTAINER_NAME],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        # Parse the output to get the network list
+        networks = json.loads(result.stdout)
+
+        # Check if the container is already connected to the target network
+        if INET_DOCKER_NETWORK in networks:
+            print(f"Container {ZEND_CONTAINER_NAME} is already connected to the network {INET_DOCKER_NETWORK}.")
+            return
+
+        # Connect the container to the network
+        subprocess.run(
+            ["docker", "network", "connect", INET_DOCKER_NETWORK, ZEND_CONTAINER_NAME],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        print(f"Connected container {ZEND_CONTAINER_NAME} to network {INET_DOCKER_NETWORK}.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.stderr.strip()}")
+    except json.JSONDecodeError:
+        print("Error decoding the network details. Ensure the container exists.")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+
+def disconnect_zend_container():
+    """Disconnect the zend container from the inet network if connected."""
+    try:
+        # Inspect the container to get its current networks
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", ZEND_CONTAINER_NAME],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        # Parse the output to get the network list
+        networks = json.loads(result.stdout)
+
+        # Check if the container is connected to the target network
+        if INET_DOCKER_NETWORK not in networks:
+            print(f"Container {ZEND_CONTAINER_NAME} is not connected to the network {INET_DOCKER_NETWORK}.")
+            return
+
+        # Disconnect the container from the network
         subprocess.run(
             ["docker", "network", "disconnect", INET_DOCKER_NETWORK, ZEND_CONTAINER_NAME],
             stdout=subprocess.PIPE,
@@ -155,9 +208,11 @@ def disconnect_zend_container():
         )
         print(f"Disconnected container {ZEND_CONTAINER_NAME} from network {INET_DOCKER_NETWORK}.")
     except subprocess.CalledProcessError as e:
-        print(f"Error disconnecting container: {e.stderr.strip()}")
+        print(f"Error: {e.stderr.strip()}")
+    except json.JSONDecodeError:
+        print("Error decoding the network details. Ensure the container exists.")
     except Exception as e:
-        print(f"Unexpected error while disconnecting container: {str(e)}")
+        print(f"Unexpected error: {str(e)}")
 
 def invalidate_blocks_to_threshold():
     """Invalidate blocks down to the specified threshold."""
@@ -366,11 +421,13 @@ if __name__ == "__main__":
         action = os.getenv("SERVICE_ACTION")
 
         if action == ServiceAction.ZEND_DUMP.value or not action:
+
             # manage running instance of zend-dumper, if there is a zend-dumper instance running kill it
             stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
 
             # start zend instance
             ensure_container_running(ZEND_CONTAINER_NAME)
+            connect_zend_container()
             time.sleep(60)
 
             # retrieve the current height from zend and compare it to the target
@@ -393,6 +450,12 @@ if __name__ == "__main__":
 
 
         if action == ServiceAction.EON_DUMP.value or not action:
+
+            # start zend instance
+            stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
+            ensure_container_running(ZEND_CONTAINER_NAME)
+            connect_zend_container()
+
             # start evmapp instance
             ensure_container_running(EVMAPP_CONTAINER_NAME)
             time.sleep(60)

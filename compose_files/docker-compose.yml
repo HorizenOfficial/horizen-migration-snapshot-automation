@@ -167,6 +167,7 @@ services:
       - ./monitoring:/app:rw
     working_dir: /app
     environment:
+      - COMPOSE_PROJECT_NAME
       - COMPOSE_PROJECT_DIR
       - SERVICE_ACTION
       - ZEND_CONTAINER_NAME
