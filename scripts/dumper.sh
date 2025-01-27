@@ -4,10 +4,10 @@
 set -euo pipefail
 
 # Output file
-OUTPUT_FILE="/usr/bin/utxos.csv"
+output_file="/usr/src/dumps/utxos.csv"
 
 # Run the dumper binary
-/usr/bin/dumper > "$OUTPUT_FILE"
+/usr/bin/dumper > "$output_file"
 
 # Wait indefinitely after execution
 tail -f /dev/null

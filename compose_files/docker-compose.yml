@@ -1,4 +1,3 @@
-version: "3.7"
 name: "${COMPOSE_PROJECT_NAME}"
 
 volumes:
@@ -8,7 +7,7 @@ volumes:
   zcash-params:
 
 networks:
-  evmapp_network:
+  evmapp-network:
     internal: true
     ipam:
       config:
@@ -22,7 +21,7 @@ services:
     restart: on-failure:5
     stop_grace_period: 10m
     networks:
-      evmapp_network:
+      evmapp-network:
         ipv4_address: "${ZEND_IP_ADDRESS}"
       inet:
     ports:
@@ -60,13 +59,13 @@ services:
     restart: on-failure:5
     stop_grace_period: 10m
     networks:
-      evmapp_network:
+      evmapp-network:
         ipv4_address: "${ZEND_DUMPER_IP_ADDRESS}"
     volumes:
       - "${COMPOSE_PROJECT_DATA_DIR}zcash-params:/mnt/zcash-params:rw"
       - "${COMPOSE_PROJECT_DATA_DIR}zen-data:/mnt/zen:rw"
       - "./scripts/dumper.sh:/usr/local/bin/dumper.sh:rw"
-      - "./monitoring/files/dumps/zend:/usr/src/dumps:rw"
+      - "./orchestrator/files/dumps/zend:/usr/src/dumps:rw"
     environment:
       - "CUSTOM_SCRIPT=${ZEN_DUMP_SCRIPT}"
       - "LOCAL_GRP_ID=${ZEN_LOCAL_GRP_ID}"
@@ -85,7 +84,7 @@ services:
     restart: on-failure:5
     stop_grace_period: 10m
     networks:
-      evmapp_network:
+      evmapp-network:
         ipv4_address: ${EVMAPP_IP_ADDRESS}
       inet:
     expose:
@@ -154,22 +153,22 @@ services:
         max-size: "512m"
         max-file: "4"
 
-  monitoring-service:
+  orchestrator-service:
     build:
-      context: ./monitoring
-    container_name: monitoring-service
+      context: ./orchestrator
+    container_name: orchestrator-service
     networks:
-      evmapp_network:
-        ipv4_address: ${MONITORING_SERVICE_IP_ADDRESS}
+      evmapp-network:
+        ipv4_address: ${ORCHESTRATOR_SERVICE_IP_ADDRESS}
     restart: on-failure:5
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./monitoring:/app:rw
+      - ./orchestrator:/app:rw
     working_dir: /app
     environment:
       - COMPOSE_PROJECT_NAME
       - COMPOSE_PROJECT_DIR
-      - SERVICE_ACTION
+      - SERVICE_ACTION=zend-dump
       - ZEND_CONTAINER_NAME
       - ZEND_IP_ADDRESS
       - SCNODE_REST_PORT

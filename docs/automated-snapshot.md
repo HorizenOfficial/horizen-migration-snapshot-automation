@@ -43,44 +43,44 @@ This directory will be mounted into the zend container and used to seed the node
     ```
 ---
 
-## Monitoring service
-The `monitoring-service` container will take care of spinning up in sequence the correct node and generate the dumps from mainchain and sidechain data. 
+## Orchestrator service
+The `orchestrator-service` container will take care of spinning up in sequence the correct node and generate the dumps from mainchain and sidechain data. 
 
-The monitoring service behaviour is regulated by the `SERVICE_ACTION` environment variable. Its value can be `zend-dump`, `eon-dump` or `snapshot-creation` to respectively perform the mainchain dump, the sidechain dump or the creation of the Horizen 2 snapshot with the logic described in the following section. Otherwise its value can be null and in this case the monitoring-service will perform all the dumps and snapshot creation workflow.
+The orchestrator service behaviour is regulated by the `SERVICE_ACTION` environment variable. Its value can be `zend-dump`, `eon-dump` or `snapshot-creation` to respectively perform the mainchain dump, the sidechain dump or the creation of the Horizen 2 snapshot with the logic described in the following section. Otherwise its value can be null and in this case the orchestrator-service will perform all the dumps and snapshot creation workflow.
 
-Another values to pass to the monitoring-service through the environment are the `ZEND_BLOCK_HEIGHT_TARGET` and `EVMAPP_BLOCK_HEIGHT_TARGET` which define the mainchain and sidechain height at which perform the data dump. 
+Another values to pass to the orchestrator-service through the environment are the `ZEND_BLOCK_HEIGHT_TARGET` and `EVMAPP_BLOCK_HEIGHT_TARGET` which define the mainchain and sidechain height at which perform the data dump. 
  
 --- 
 
 ## Running the stack
 
 1. Prerequisites
-    - Storage: A minimum of **250 GB** of free space is required to run evmapp and zend nodes in mainnet and around **25 GB** in testnet. 
+    - Storage: A minimum of **250 GB** of free space is required to run evmapp and zend nodes on mainnet and around **25 GB** on testnet. 
    Keep in mind that the storage requirements will grow over time.
 
-2. Set the `SERVICE_ACTION` in `.env` file as `zend-dump` and run the `monitoring-service` container:
+2. Set the `SERVICE_ACTION` in `.env` file as `zend-dump` and run the `orchestrator-service` container:
     ```shell
-    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d monitoring-service
+    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d orchestrator-service
     ```
-    It will spin up the `zend` container. Let it sync and monitor the situation through docker logs (the `monitoring-service` will output the zend height at fixed rate) or check it interacting directly with the `zend` container:
+    It will spin up the `zend` container. Let it sync and monitor the situation through docker logs (the `orchestrator-service` will output the zend height at fixed rate) or check it interacting directly with the `zend` container:
     ```shell
     docker compose -f deployments/[eon|gobi]/docker-compose.yml exec zend gosu user zen-cli getblockcount
     ```
-    When the zend node will reach the target height defined by `ZEND_BLOCK_HEIGHT_TARGET` variable the `monitoring-service` will stop it and it will spin up a `zend-dumper` instance that will generate the mainchain data dump. The file called `utxos.csv` will be saved in `deployments/[eon|gobi]/monitoring/files/dumps/zend` folder. At the end of the file generation process the `monitoring-service` container will stop.
+    When the zend node will reach the target height defined by `ZEND_BLOCK_HEIGHT_TARGET` variable the `orchestrator-service` will stop it and it will spin up a `zend-dumper` instance that will generate the mainchain data dump. The file called `utxos.csv` will be saved in `deployments/[eon|gobi]/orchestrator/files/dumps/zend` folder. At the end of the file generation process the `orchestrator-service` container will stop.
 
-3. Set the `SERVICE_ACTION` in `.env` file as `eon-dump` and run the `monitoring-service` container:
+3. Set the `SERVICE_ACTION` in `.env` file as `eon-dump` and run the `orchestrator-service` container:
     ```shell
-    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d monitoring-service
+    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d orchestrator-service
     ```
-    It will spin up the `zend` and `evmapp` containers. Let the `evmapp` node sync (in this step we assume that the zend node is synchronized with its target height). Monitor the situation through docker logs (the `monitoring-service` will output the evmapp height at fixed rate) or check it interacting directly with the `evmapp` container:
+    It will spin up the `zend` and `evmapp` containers. Let the `evmapp` node sync (in this step we assume that the zend node is synchronized with its target height). Monitor the situation through docker logs (the `orchestrator-service` will output the evmapp height at fixed rate) or check it interacting directly with the `evmapp` container:
     ```shell 
     docker compose -f deployments/[eon|gobi]/docker-compose.yml exec evmapp gosu user bash -c 'curl -sXPOST "http://127.0.0.1:[SCNODE_REST_PORT]/block/best" -H "accept: application/json" | jq '.result.height''
     ```
-    When the evmapp node will reach the target height defined by `EVMAPP_BLOCK_HEIGHT_TARGET` variable the `monitoring-service` will generate the sidechain data dump. The files called `eon_stakes.csv` and `eon.dump` will be saved in `deployments/[eon|gobi]/monitoring/files/dumps/eon` folder. At the end of the files generation process the `monitoring-service` container will stop.
+    When the evmapp node will reach the target height defined by `EVMAPP_BLOCK_HEIGHT_TARGET` variable the `orchestrator-service` will generate the sidechain data dump. The files called `eon_stakes.csv` and `eon.dump` will be saved in `deployments/[eon|gobi]/orchestrator/files/dumps/eon` folder. At the end of the files generation process the `orchestrator-service` container will stop.
 
-4. Set the `SERVICE_ACTION` in `.env` file as `snapshot-creation` and run the `monitoring-service` container:
+4. Set the `SERVICE_ACTION` in `.env` file as `snapshot-creation` and run the `orchestrator-service` container:
     ```shell
-    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d monitoring-service
+    docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d orchestrator-service
     ```
     It will generate the Horizen 2 genesis files starting from the initial parachain spec file and the mainchain and sidechain dump files. A custom image docker of the horizen 2 node is used on this step, it is a spec builder image modified to manage large files. The following steps are executed:
 
@@ -94,7 +94,7 @@ Another values to pass to the monitoring-service through the environment are the
 
     5. generate the parachain genesis state file (`para-genesis-state`) executing the `export-genesis-state` command on the horizen spec builder image passing the `para-spec-raw.json` file as input.
 
-    All the files will be saved in the `deployments/[eon|gobi]/monitoring/files/parachain-spec` folder.
+    All the files will be saved in the `deployments/[eon|gobi]/orchestrator/files/parachain-spec` folder.
 
 
 5. **NOTE**
@@ -102,7 +102,7 @@ Another values to pass to the monitoring-service through the environment are the
     ```shell
     docker compose -f deployments/[eon|gobi]/docker-compose.yml exec zend gosu user zen-cli getblockcount
     ```
-    call the to retrieve the hash
+    call the `getblockhash` function to retrieve the hash
     ```shell
     docker compose -f deployments/[eon|gobi]/docker-compose.yml exec zend gosu user zen-cli getblockhash <block-number>
     ```

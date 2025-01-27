@@ -14,4 +14,4 @@ WORKDIR /app
 COPY . /app
 
 # Run the script
-CMD ["python", "-u", "monitoring-service.py"]
+CMD ["python", "-u", "orchestrator-service.py"]

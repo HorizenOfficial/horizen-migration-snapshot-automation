@@ -164,18 +164,19 @@ ln -sf "${DUMPER_FILE}" "${SYMLINK_DUMPER_FILE}"
 
 mkdir -p "${DEPLOYMENT_DIR}/seed"
 
-MONITORING_DIR="${ROOT_DIR}/monitoring"
-DEPLOYMENT_MONITORING_DIR="${DEPLOYMENT_DIR}/monitoring"
-mkdir -p "${DEPLOYMENT_MONITORING_DIR}"
-cp -r "${MONITORING_DIR}"/* "${DEPLOYMENT_MONITORING_DIR}/"
+ORCHESTRATOR_DIR="${ROOT_DIR}/orchestrator"
+DEPLOYMENT_ORCHESTRATOR_DIR="${DEPLOYMENT_DIR}/orchestrator"
+mkdir -p "${DEPLOYMENT_ORCHESTRATOR_DIR}"
+cp -r "${ORCHESTRATOR_DIR}"/* "${DEPLOYMENT_ORCHESTRATOR_DIR}/"
 
-DUMP_FILES_DIR="${DEPLOYMENT_MONITORING_DIR}/files"
+DUMP_FILES_DIR="${DEPLOYMENT_ORCHESTRATOR_DIR}/files"
 mkdir -p "${DUMP_FILES_DIR}"
-mkdir -p "${DUMP_FILES_DIR}/zend"
-mkdir -p "${DUMP_FILES_DIR}/eon"
+mkdir -p "${DUMP_FILES_DIR}/parachain-spec"
+mkdir -p "${DUMP_FILES_DIR}/dumps"
+mkdir -p "${DUMP_FILES_DIR}/dumps/zend"
+mkdir -p "${DUMP_FILES_DIR}/dumps/eon"
 
 echo -e "\n\033[1m=== Project has been initialized correctly for ${network_value} network ===\033[0m"
-
-echo -e "\n\033[1m=== RUNNING HORIZEN SNAPSHOT CREATION PROJECT ===\033[0m\n"
+echo -e "\033[1m=== Refer to automated-snapshot.md for details ===\033[0m\n"
 
 exit 0

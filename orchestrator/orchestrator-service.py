@@ -29,10 +29,15 @@ class ServiceAction(Enum):
     EON_DUMP = "eon-dump"
     SNAPSHOT_CREATION = "snapshot-creation"
 
+def decimal_to_hex(decimal_number):
+    if not isinstance(decimal_number, int) or decimal_number < 0:
+        raise ValueError("Input must be a non-negative integer.")
+    return hex(decimal_number)
+
 # ------------------------------------------------------------------------------------------------
 # manage containers
 
-def ensure_container_running(container_name: str):
+def start_container(container_name: str):
     client = docker.from_env()
     
     try:
@@ -86,7 +91,7 @@ def stop_container_if_running(container_name: str):
         print(f"An error occurred while managing the container '{container_name}': {e}")
 
 # ------------------------------------------------------------------------------------------------
-# snapshot creation methods
+# zend methods
 
 def get_zend_block_height():
     """Retrieve the current block height from the zend container"""
@@ -275,10 +280,10 @@ def get_evmapp_block_height():
     else:
         print("Error: No result field found in the response or request failed.")
 
-def call_zen_dump_etv1_method():
+def call_zen_dump_ethv1_method():
     """Create the evmapp zen dump calling the zen_dump ethv1 method"""
-    response_data = call_evmapp_ethv1('zen_dump', ["latest", "/tmp/file.json"])
-
+    hex_eon_height_target = decimal_to_hex(EVMAPP_BLOCK_HEIGHT_TARGET)
+    response_data = call_evmapp_ethv1('zen_dump', [hex_eon_height_target, "/tmp/file.json"])
     if response_data:
         print("Zen dump response:", response_data)
     else:
@@ -324,7 +329,7 @@ def execute_setup_eon2_genesis_script():
 
 def create_para_spec_raw(output_file):
     try:
-        para_spec_plain_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-plain.json"
+        para_spec_plain_absolute_path = COMPOSE_PROJECT_DIR + "/orchestrator/files/parachain-spec/para-spec-plain.json"
 
         command = [
             "docker", "run", "--rm",
@@ -351,7 +356,7 @@ def create_para_spec_raw(output_file):
 
 def create_para_genesis_wasm(output_file):
     try:
-        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-raw.json"
+        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/orchestrator/files/parachain-spec/para-spec-raw.json"
 
         command = [
             "docker", "run", "--rm",
@@ -377,7 +382,7 @@ def create_para_genesis_wasm(output_file):
 
 def create_para_genesis_state(output_file):
     try:
-        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/monitoring/files/parachain-spec/para-spec-raw.json"
+        para_spec_raw_absolute_path = COMPOSE_PROJECT_DIR + "/orchestrator/files/parachain-spec/para-spec-raw.json"
 
         command = [
             "docker", "run", "--rm",
@@ -426,7 +431,7 @@ if __name__ == "__main__":
             stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
 
             # start zend instance
-            ensure_container_running(ZEND_CONTAINER_NAME)
+            start_container(ZEND_CONTAINER_NAME)
             connect_zend_container()
             time.sleep(60)
 
@@ -442,7 +447,7 @@ if __name__ == "__main__":
                         # stop the zend container 
                         stop_container_if_running(ZEND_CONTAINER_NAME)
                         # start the zend-dumper container to create the dump
-                        ensure_container_running(ZEND_DUMPER_CONTAINER_NAME)
+                        start_container(ZEND_DUMPER_CONTAINER_NAME)
                         break 
                     else:
                         zend_block_height = get_zend_block_height()
@@ -453,11 +458,11 @@ if __name__ == "__main__":
 
             # start zend instance
             stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
-            ensure_container_running(ZEND_CONTAINER_NAME)
+            start_container(ZEND_CONTAINER_NAME)
             connect_zend_container()
 
             # start evmapp instance
-            ensure_container_running(EVMAPP_CONTAINER_NAME)
+            start_container(EVMAPP_CONTAINER_NAME)
             time.sleep(60)
 
             # retrieve the current height from evmapp and compare it to the target
@@ -467,7 +472,7 @@ if __name__ == "__main__":
                 # wait till it is synched
                 while True:
                     if zend_block_height >= ZEND_BLOCK_HEIGHT_TARGET:
-                        call_zen_dump_etv1_method()
+                        call_zen_dump_ethv1_method()
                         break 
                     else:
                         evmapp_block_height = get_evmapp_block_height()
@@ -498,4 +503,4 @@ if __name__ == "__main__":
             print(f"Unknown service action: {action}")
 
     except Exception as e:
-        print("Monitoring service execution failed.")
+        print("Orchestrator service execution failed.")
