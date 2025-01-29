@@ -89,7 +89,6 @@ services:
       inet:
     expose:
       - "${SCNODE_REST_PORT}"
-      - "${SCNODE_WS_SERVER_PORT}"
     ports:
       - "${SCNODE_NET_P2P_PORT}:${SCNODE_NET_P2P_PORT}"
     volumes:
@@ -97,9 +96,6 @@ services:
       - "${COMPOSE_PROJECT_DATA_DIR}evmapp-snark-keys:/sidechain/snark_keys:rw"
       - "./logs/evmapp:/sidechain/logs:rw"
     environment:
-      - "RPC_USER=${ZEN_RPC_USER}"
-      - "RPC_PASSWORD=${ZEN_RPC_PASSWORD}"
-      - "RPC_PORT=${ZEN_RPC_PORT}"
       - "LOCAL_GRP_ID=${SCNODE_GRP_ID}"
       - "LOCAL_USER_ID=${SCNODE_USER_ID}"
       - SCNODE_BACKUP_TAR_GZ_URL
@@ -139,8 +135,6 @@ services:
       - SCNODE_WALLET_GENESIS_SECRETS
       - SCNODE_WALLET_MAXTX_FEE
       - SCNODE_WALLET_SEED
-      - SCNODE_WS_ZEN_FQDN
-      - "SCNODE_WS_ZEN_PORT=${ZEN_WS_PORT}"
       - SCNODE_WS_SERVER_PORT
       - SCNODE_WS_CLIENT_ENABLED
       - SCNODE_WS_SERVER_ENABLED
@@ -168,7 +162,7 @@ services:
     environment:
       - COMPOSE_PROJECT_NAME
       - COMPOSE_PROJECT_DIR
-      - SERVICE_ACTION=zend-dump
+      - SERVICE_ACTION
       - ZEND_CONTAINER_NAME
       - ZEND_IP_ADDRESS
       - SCNODE_REST_PORT

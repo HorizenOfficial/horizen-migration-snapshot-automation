@@ -72,7 +72,7 @@ Another values to pass to the orchestrator-service through the environment are t
     ```shell
     docker compose -f deployments/[eon|gobi]/docker-compose.yml up -d orchestrator-service
     ```
-    It will spin up the `zend` and `evmapp` containers. Let the `evmapp` node sync (in this step we assume that the zend node is synchronized with its target height). Monitor the situation through docker logs (the `orchestrator-service` will output the evmapp height at fixed rate) or check it interacting directly with the `evmapp` container:
+    It will spin up the `evmapp` container. Let the `evmapp` node sync (in this step we assume that the zend node is synchronized with its target height). Monitor the situation through docker logs (the `orchestrator-service` will output the evmapp height at fixed rate) or check it interacting directly with the `evmapp` container:
     ```shell 
     docker compose -f deployments/[eon|gobi]/docker-compose.yml exec evmapp gosu user bash -c 'curl -sXPOST "http://127.0.0.1:[SCNODE_REST_PORT]/block/best" -H "accept: application/json" | jq '.result.height''
     ```

@@ -456,11 +456,6 @@ if __name__ == "__main__":
 
         if action == ServiceAction.EON_DUMP.value or not action:
 
-            # start zend instance
-            stop_container_if_running(ZEND_DUMPER_CONTAINER_NAME)
-            start_container(ZEND_CONTAINER_NAME)
-            connect_zend_container()
-
             # start evmapp instance
             start_container(EVMAPP_CONTAINER_NAME)
             time.sleep(60)
@@ -471,7 +466,7 @@ if __name__ == "__main__":
 
                 # wait till it is synched
                 while True:
-                    if zend_block_height >= ZEND_BLOCK_HEIGHT_TARGET:
+                    if evmapp_block_height >= EVMAPP_BLOCK_HEIGHT_TARGET:
                         call_zen_dump_ethv1_method()
                         break 
                     else:
