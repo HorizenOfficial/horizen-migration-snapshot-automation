@@ -1,0 +1,163 @@
+name: "${COMPOSE_PROJECT_NAME}"
+
+volumes:
+  evmapp-data:
+  evmapp-snark-keys:
+  zen-data:
+  zcash-params:
+
+networks:
+  orchestrator-network:
+    internal: true
+  inet:
+
+services:
+  zend:
+    image: "zencash/zen-node:${ZEND_TAG}"
+    container_name: "${ZEND_CONTAINER_NAME_PREFIX}-${NETWORK}"
+    hostname: "${ZEND_CONTAINER_NAME_PREFIX}-${NETWORK}"
+    restart: no
+    stop_grace_period: 2m
+    networks:
+      orchestrator-network:
+      inet:
+    ports:
+      - "${ZEN_PORT}:${ZEN_PORT}"
+    expose:
+      - "${ZEN_RPC_PORT}"
+    volumes:
+      - "zcash-params:/mnt/zcash-params:rw"
+      - "zen-data:/mnt/zen:rw"
+      - "./container_mounts/zend:/mnt/scripts:rw"
+      - "${SNAPSHOT_PATH_LOCAL}:${SNAPSHOT_PATH_CONTAINER}:rw"
+    environment:
+      - "CUSTOM_SCRIPT=${ZEN_CUSTOM_SCRIPT}"
+      - "EXTERNAL_IP=${ZEN_EXTERNAL_IP}"
+      - LOCAL_GRP_ID
+      - LOCAL_USER_ID
+      - "LOG=${ZEN_LOG}"
+      - NETWORK
+      - "OPTS=${ZEN_OPTS}"
+      - "PORT=${ZEN_PORT}"
+      - "RPC_ALLOWIP_PRESET=${ZEN_RPC_ALLOWIP_PRESET}"
+      - "RPC_PASSWORD=${ZEN_RPC_PASSWORD}"
+      - "RPC_PORT=${ZEN_RPC_PORT}"
+      - "RPC_USER=${ZEN_RPC_USER}"
+      - SNAPSHOT_PATH_CONTAINER
+      - ZEND_SNAPSHOT_BLOCK_HEIGHT
+      - ZEND_SNAPSHOT_FILE
+      - ZEN_SEED_TAR_GZ_URL
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "4"
+
+  evmapp:
+    image: "zencash/evmapp:${EVMAPP_TAG}"
+    container_name: "${EVMAPP_CONTAINER_NAME_PREFIX}-${NETWORK}"
+    hostname: "${EVMAPP_CONTAINER_NAME_PREFIX}-${NETWORK}"
+    restart: no
+    stop_grace_period: 2m
+    networks:
+      orchestrator-network:
+      inet:
+    expose:
+      - "${SCNODE_REST_PORT}"
+    ports:
+      - "${SCNODE_NET_P2P_PORT}:${SCNODE_NET_P2P_PORT}"
+    volumes:
+      - "evmapp-data:/sidechain/datadir:rw"
+      - "evmapp-snark-keys:/sidechain/snark_keys:rw"
+      - "./container_mounts/evmapp/reseed_entrypoint.sh:/usr/local/bin/reseed_entrypoint.sh:ro"
+      - "${SNAPSHOT_PATH_LOCAL}:${SNAPSHOT_PATH_CONTAINER}:rw"
+    entrypoint: [ "reseed_entrypoint.sh" ]
+    command: [ "/usr/bin/true" ]
+    environment:
+      - LOCAL_GRP_ID
+      - LOCAL_USER_ID
+      - SCNODE_CERT_MASTERS_PUBKEYS
+      - SCNODE_CERT_SIGNERS_PUBKEYS
+      - SCNODE_CERT_SIGNERS_MAXPKS
+      - SCNODE_CERT_SIGNERS_THRESHOLD
+      - SCNODE_CERT_SIGNING_ENABLED
+      - SCNODE_CERT_SUBMITTER_ENABLED
+      - SCNODE_EVM_STATE_DUMP_ENABLED
+      - SCNODE_FORGER_ENABLED
+      - SCNODE_FORGER_MAXCONNECTIONS
+      - SCNODE_FORGER_RESTRICT
+      - SCNODE_ALLOWED_FORGERS
+      - SCNODE_GENESIS_BLOCKHEX
+      - SCNODE_GENESIS_COMMTREEHASH
+      - SCNODE_GENESIS_ISNONCEASING
+      - SCNODE_GENESIS_MCBLOCKHEIGHT
+      - SCNODE_GENESIS_MCNETWORK
+      - SCNODE_GENESIS_POWDATA
+      - SCNODE_GENESIS_SCID
+      - SCNODE_GENESIS_WITHDRAWALEPOCHLENGTH
+      - SCNODE_LOG_CONSOLE_LEVEL
+      - SCNODE_LOG_FILE_LEVEL
+      - SCNODE_NET_API_LIMITER_ENABLED
+      - SCNODE_NET_HANDLING_TXS
+      - SCNODE_NET_KNOWNPEERS
+      - SCNODE_NET_MAGICBYTES
+      - SCNODE_NET_MAX_IN_CONNECTIONS
+      - SCNODE_NET_MAX_OUT_CONNECTIONS
+      - SCNODE_NET_NODENAME
+      - SCNODE_NET_P2P_PORT
+      - SCNODE_NET_REBROADCAST_TXS
+      - SCNODE_NET_SLOW_MODE
+      - SCNODE_REST_PORT
+      - SCNODE_SEED_TAR_GZ_URL
+      - SCNODE_WALLET_MAXTX_FEE
+      - SCNODE_WALLET_SEED
+      - SCNODE_WS_CLIENT_ENABLED
+      - SCNODE_WS_SERVER_ENABLED
+      - SCNODE_WS_SERVER_PORT
+      - SNAPSHOT_PATH_CONTAINER
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "4"
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+      args:
+        - ARG_MIGRATION_COMMITTISH
+      pull: true
+    container_name: "orchestrator-${NETWORK}"
+    networks:
+      orchestrator-network:
+    restart: no
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+      - "${SNAPSHOT_PATH_LOCAL}:${SNAPSHOT_PATH_CONTAINER}:rw"
+    environment:
+      - DEBUG
+      - EVMAPP_CONTAINER_NAME_PREFIX
+      - EVMAPP_SNAPSHOT_FILE
+      - EVMAPP_STAKES_FILE
+      - FORCE_NEW_SNAPSHOT
+      - FORCE_RESEED
+      - LOCAL_GRP_ID
+      - LOCAL_USER_ID
+      - NETWORK
+      - PREGOBI_SCID
+      - SCNODE_GENESIS_SCID
+      - SCNODE_REST_PORT
+      - SKIP_CHECK_TOTAL_BALANCE_FROM_ZEND
+      - SNAPSHOT_PATH_CONTAINER
+      - ZEND_CONTAINER_NAME_PREFIX
+      - ZEND_SNAPSHOT_BLOCK_HEIGHT
+      - ZEND_SNAPSHOT_BLOCK_HEIGHT_MIN_CONF
+      - ZEND_SNAPSHOT_FILE
+      - ZEN_RPC_PASSWORD
+      - ZEN_RPC_PORT
+      - ZEN_RPC_USER
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+        max-file: "4"

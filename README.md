@@ -1,6 +1,6 @@
 # compose-horizen-snapshot
 
-This repository contains all the resources for creating the Horizen 2 snapshot with the data from Horizen mainchain and EON sidechain on mainnet or testnet.
+This repository contains all the resources for creating the Horizen to Base migration snapshot with the data from Horizen mainchain and EON sidechain on mainnet or testnet.
 
 ## Requirements
 

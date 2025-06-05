@@ -1,0 +1,26 @@
+[project]
+name = "compose-horizen-snapshot-orchestrator"
+version = "1.0.0"
+authors = [
+    { name="The Horizen Foundation", email="infrastructure@horizen.io" },
+]
+description = "Orchestrator Docker container to generate Horizen to Base migration snapshots"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Linux",
+]
+dependencies = [
+    "python-bitcoinrpc",
+    "docker",
+    "requests",
+    "simplejson"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/HorizenOfficial/horizen-migration-snapshot-automation"
+"Bug Tracker" = "https://github.com/HorizenOfficial/horizen-migration-snapshot-automation/issues"
+
+[project.scripts]
+orchestrator = "orchestrator:main"
