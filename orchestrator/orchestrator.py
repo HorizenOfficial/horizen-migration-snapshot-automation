@@ -473,7 +473,7 @@ def get_evmapp_stakes_snapshot():
 # tramsform zend snapshot to format accepted by ZendBackupVault.sol
 def run_zend_to_horizen():
     print("TRANSFORM - running zend_to_horizen.")
-    _ = execute_external_command("zend_to_horizen", zend_snapshot_file, automappings_file, zend_vault_file, evmapp_vault_file)
+    _ = execute_external_command("zend_to_horizen", NETWORK, zend_snapshot_file, automappings_file, zend_vault_file, evmapp_vault_file)
     if path_exists(zend_vault_file) and path_exists(evmapp_vault_file):
         write_str_file(zend_to_horizen_complete_file)
 
