@@ -136,6 +136,6 @@ echo -e "To start the snapshotting procedure run:"
 
 echo -e "\n\033[1mdocker compose -f ${DEPLOYMENT_DIR}/docker-compose.yml up -d\033[0m"
 
-echo -e "\n\033[1m=== Refer to docs/automated-snapshot.md for details ===\033[0m\n"
+echo -e "\n\033[1m=== Refer to README.md for details ===\033[0m\n"
 
 exit 0
