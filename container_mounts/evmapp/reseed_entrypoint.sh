@@ -30,7 +30,7 @@ check_requirements() {
   local to_install=""
   command -v aria2c &> /dev/null || to_install+="aria2"
   if [ -n "${to_install}" ]; then
-    echo -e "${script_name} - Installiang requirements: ${to_install}\n"
+    echo -e "${script_name} - Installing requirements: ${to_install}\n"
     DEBIAN_FRONTEND=noninteractive apt-get -qq update
     # shellcheck disable=SC2086
     DEBIAN_FRONTEND=noninteractive apt-get -yqq install --no-install-recommends ${to_install}

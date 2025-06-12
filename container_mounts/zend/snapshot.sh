@@ -7,7 +7,7 @@ check_requirements() {
   local to_install=""
   command -v jq &> /dev/null || to_install+="jq"
   if [ -n "${to_install}" ]; then
-    echo -e "\n${script_name} - Installiang requirements: ${to_install}\n"
+    echo -e "\n${script_name} - Installing requirements: ${to_install}\n"
     DEBIAN_FRONTEND=noninteractive apt-get -qq update
     # shellcheck disable=SC2086
     DEBIAN_FRONTEND=noninteractive apt-get -yqq install --no-install-recommends ${to_install}

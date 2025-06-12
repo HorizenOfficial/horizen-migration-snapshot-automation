@@ -76,7 +76,7 @@ evmapp_snapshot_path = f"{SNAPSHOT_PATH_CONTAINER}/evmapp"
 evmapp_snapshot_file = f"{evmapp_snapshot_path}/{EVMAPP_SNAPSHOT_FILE}"
 evmapp_stakes_file = f"{evmapp_snapshot_path}/{EVMAPP_STAKES_FILE}"
 evmapp_stakes_complete_file = f"{state_dir}/.evmapp_stakes_complete"
-orchestator_zend_snapshot_hash_file = f"{state_dir}/.orchestrator_zend_snapshot_hash"
+orchestrator_zend_snapshot_hash_file = f"{state_dir}/.orchestrator_zend_snapshot_hash"
 automappings_file = f"/app/horizen-migration/dump-scripts/automappings/{NETWORK}.json"
 zend_to_horizen_complete_file = f"{state_dir}/.zend_to_horizen_complete"
 zend_vault_file = f"{zend_snapshot_path}.json"
@@ -323,8 +323,8 @@ def get_zend_snapshot():
             if zend_rpc_ready:
                 zend_cur_height = call_zend_rpc("getblockcount")
                 orchestator_zend_snapshot_hash = False
-                if path_exists(orchestator_zend_snapshot_hash_file):
-                    orchestator_zend_snapshot_hash = read_str_file(orchestator_zend_snapshot_hash_file)
+                if path_exists(orchestrator_zend_snapshot_hash_file):
+                    orchestator_zend_snapshot_hash = read_str_file(orchestrator_zend_snapshot_hash_file)
                 if orchestator_zend_snapshot_hash:
                     # check if snapshot height has seen enough confirmations
                     if zend_cur_height >= target_height:
@@ -333,7 +333,7 @@ def get_zend_snapshot():
                         assertion_msg = (f"ZEND -  {zend_container_name} hash of block {ZEND_SNAPSHOT_BLOCK_HEIGHT} has changed from originally "
                                          f"detected hash '{orchestator_zend_snapshot_hash}' to '{current_zend_snapshot_hash}'.\n\n"
                                          "ZEND -  This could indicate unstable network conditions, please confirm the network is stable.\n"
-                                         f"ZEND -  To rerun taking the snapshot run 'rm ./{orchestator_zend_snapshot_hash_file.split('/', 2)[2]}' in './deployments/{evmapp_network}'.\n"
+                                         f"ZEND -  To rerun taking the snapshot run 'rm ./{orchestrator_zend_snapshot_hash_file.split('/', 2)[2]}' in './deployments/{evmapp_network}'.\n"
                                          "ZEND -  Then restart the snapshotting process by running 'docker-compose up -d'")
                         assert orchestator_zend_snapshot_hash == current_zend_snapshot_hash, assertion_msg
                         # zend ready to snapshot
@@ -355,7 +355,7 @@ def get_zend_snapshot():
                             zend_sidechain_balance_satoshi += int(call_zend_rpc("getscinfo", PREGOBI_SCID, True, False)["items"][0]["balance"] * 10**8)
                         print(f"ZEND -  '{zend_container_name}' snapshot block {ZEND_SNAPSHOT_BLOCK_HEIGHT} reached. Detected block hash - {detected_hash}")
                         print("ZEND - Capturing zend active sidechain balances at snapshot block height.")
-                        write_str_file(orchestator_zend_snapshot_hash_file, detected_hash)
+                        write_str_file(orchestrator_zend_snapshot_hash_file, detected_hash)
                         write_str_file(zend_snapshot_scid_balance_file, str(zend_sidechain_balance_satoshi))
                     else:
                         print(f"ZEND -  Waiting to reach '{zend_container_name}' snapshot height - {ZEND_SNAPSHOT_BLOCK_HEIGHT}, current height - {zend_cur_height}, remaining - {ZEND_SNAPSHOT_BLOCK_HEIGHT-zend_cur_height}")
@@ -382,8 +382,8 @@ def get_evmapp_snapshot():
                 return
             evmapp_mc_ref_height = response["blockReferenceInfo"]["height"]
             orchestator_zend_snapshot_hash = False
-            if path_exists(orchestator_zend_snapshot_hash_file):
-               orchestator_zend_snapshot_hash = read_str_file(orchestator_zend_snapshot_hash_file)
+            if path_exists(orchestrator_zend_snapshot_hash_file):
+               orchestator_zend_snapshot_hash = read_str_file(orchestrator_zend_snapshot_hash_file)
             # check if snapshot mc ref height has seen enough confirmations
             if orchestator_zend_snapshot_hash:
                 # snapshot height confirmed
@@ -417,7 +417,7 @@ def get_evmapp_snapshot():
                         print(f"EVMAPP - Error: '{evmapp_container_name}' dump request failed with error:", response["error"])
                     else:
                         print(f"EVMAPP - Error: '{evmapp_container_name}' dump request failed.")
-                # snashot height reached
+                # snapshot height reached
                 elif evmapp_mc_ref_height >= ZEND_SNAPSHOT_BLOCK_HEIGHT:
                     response = call_evmapp_rest("/mainchain/blockReferenceInfoBy", {"height":ZEND_SNAPSHOT_BLOCK_HEIGHT,"format":True})
                     if not response:
@@ -470,14 +470,14 @@ def get_evmapp_stakes_snapshot():
 # ------------------------------------------------------------------------------------------------
 # snapshot transform methods
 
-# tramsform zend snapshot to format accepted by ZendBackupVault.sol
+# transform zend snapshot to format accepted by ZendBackupVault.sol
 def run_zend_to_horizen():
     print("TRANSFORM - running zend_to_horizen.")
     _ = execute_external_command("zend_to_horizen", NETWORK, zend_snapshot_file, automappings_file, zend_vault_file, evmapp_vault_file)
     if path_exists(zend_vault_file) and path_exists(evmapp_vault_file):
         write_str_file(zend_to_horizen_complete_file)
 
-# tramsform evmapp snapshot to format accepted by EONBackupVault.sol
+# transform evmapp snapshot to format accepted by EONBackupVault.sol
 def run_setup_eon2_json():
     print("TRANSFORM - running setup_eon2_json.")
     _ = execute_external_command("setup_eon2_json", evmapp_snapshot_file, evmapp_stakes_file, evmapp_vault_file, evmapp_accounts_file)
@@ -548,7 +548,7 @@ if FORCE_NEW_SNAPSHOT:
         zend_snapshot_scid_balance_file,
         evmapp_snapshot_complete_file,
         evmapp_stakes_complete_file,
-        orchestator_zend_snapshot_hash_file,
+        orchestrator_zend_snapshot_hash_file,
         zend_to_horizen_complete_file,
         zend_vault_file,
         evmapp_accounts_file,
@@ -694,7 +694,7 @@ def main():
         if setup_eon2_json_complete:
             if not setup_eon2_json_notified:
                 print(f"ORCHESTRATOR - setup_eon2_json transformation complete. File written to './{evmapp_accounts_file.split('/', 2)[2]}'")
-                zsetup_eon2_json_notified = True
+                setup_eon2_json_notified = True
 
         transforms_complete = zend_to_horizen_complete and setup_eon2_json_complete
 
