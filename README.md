@@ -41,7 +41,7 @@ You have selected: gobi
 
 === Creating .env file ===
 
-=== Generating a random throwaway wallet seed phrase. ===
+=== Generating a random throwaway wallet seed phrase ===
 
 
 === Setting up the docker containers local user and group ids ===

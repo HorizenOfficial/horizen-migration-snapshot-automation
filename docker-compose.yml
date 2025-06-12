@@ -71,8 +71,8 @@ services:
       - "evmapp-snark-keys:/sidechain/snark_keys:rw"
       - "./container_mounts/evmapp/reseed_entrypoint.sh:/usr/local/bin/reseed_entrypoint.sh:ro"
       - "${SNAPSHOT_PATH_LOCAL}:${SNAPSHOT_PATH_CONTAINER}:rw"
-    entrypoint: [ "reseed_entrypoint.sh" ]
-    command: [ "/usr/bin/true" ]
+    entrypoint: ["reseed_entrypoint.sh"]
+    command: ["/usr/bin/true"]
     environment:
       - LOCAL_GRP_ID
       - LOCAL_USER_ID
