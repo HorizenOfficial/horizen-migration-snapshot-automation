@@ -57,7 +57,7 @@ RUN set -eEuo pipefail  \
     && python -m pip install --no-cache-dir --require-virtualenv --require-hashes -r requirements.txt \
     && python -m pip install --no-cache-dir --require-virtualenv . \
     && git clone --branch "$MIGRATION_COMMITTISH" --single-branch "$MIGRATION_REPO" --depth 1 ./horizen-migration \
-    && python -m pip install --no-cache-dir --require-virtualenv -r ./horizen-migration/dump-scripts/python/requirements.txt \
+    && python -m pip install --no-cache-dir --require-virtualenv --require-hashes -r ./horizen-migration/dump-scripts/python/requirements.txt \
     && python -m pip install --no-cache-dir --require-virtualenv -e ./horizen-migration/dump-scripts/python \
     && apt-mark auto '.*' &> /dev/null && [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark &> /dev/null \
     && DEBIAN_FRONTEND=noninteractive apt-get purge -qqy --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
