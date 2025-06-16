@@ -769,4 +769,7 @@ def main():
 
         time.sleep(main_interval)
 
+    if not DEBUG:
+        stop_container_if_running(zend_container_name)
+        stop_container_if_running(evmapp_container_name)
     print("ORCHESTRATOR - Snapshotting complete. Exiting ...")
